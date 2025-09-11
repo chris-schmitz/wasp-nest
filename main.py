@@ -1,25 +1,16 @@
-# Trinket IO demo
-# Welcome to CircuitPython 3.1.1 :)
-
 import board
 from digitalio import DigitalInOut, Direction, Pull
 from analogio import AnalogOut, AnalogIn
 import touchio
-from adafruit_hid.keyboard import Keyboard
-from adafruit_hid.keycode import Keycode
-import adafruit_dotstar as dotstar
 import time
 import neopixel
 import random
+import adafruit_hcsr04
 
-# One pixel connected internally!
-# dot = dotstar.DotStar(board.APA102_SCK, board.APA102_MOSI, 1, brightness=0.2)
+touch = touchio.TouchIn(board.D1)
+ultrasonic = adafruit_hcsr04.HCSR04(trigger_pin=board.D3, echo_pin=board.D4)
 
 
-# Capacitive touch on D3
-touch = touchio.TouchIn(board.D3)
-
-# NeoPixel strip (of 16 LEDs) connected on D4
 NUMPIXELS = 12
 neopixels = neopixel.NeoPixel(board.D2, NUMPIXELS, brightness=0.8, auto_write=False)
 
@@ -47,38 +38,33 @@ def wheel(pos):
 
 ######################### MAIN LOOP ##############################
 
-# i = 0
-# while True:
-#     print("Loop", i)
-#     #   dot[0] = wheel(i & 255)
 
-#     # also make the neopixels swirl around
-#     for p in range(NUMPIXELS):
-#         idx = int((p * 256 / NUMPIXELS) + i)
-#         neopixels[p] = wheel(idx & 255)
-#     neopixels.show()
+rainbow_last_checked = 0
+rainbow_interval = 0.0005
+rainbow_index = 0
+rainbow_current_cell = 0
+def rainbow(now):
+    global rainbow_index
+    global rainbow_current_cell
+    global rainbow_last_checked
+    if now - rainbow_last_checked > rainbow_interval:
+        rainbow_last_checked = now 
 
-#     # use D3 as capacitive touch to turn on internal LED
-#     if touch.value:
-#         print("D3 touched!")
-#     #   led.value = touch.value
 
-#     i = (i + 1) % 256  # run from 0 to 255
-#     time.sleep(0.01) # make bigger to slow down
+        # for p in range(NUMPIXELS):
+        idx = int((rainbow_current_cell * 256 / NUMPIXELS) + rainbow_index)
+        neopixels[rainbow_current_cell] = wheel(idx & 255)
+        neopixels.show()
 
-changed = set()
-def get_random_pixel():
-    pixel = None
-    while pixel is None:
-        pixel = random.randint(0, NUMPIXELS - 1)
-        if pixel not in changed:
-            changed.add(pixel)
-        else:
-            print("skip")
-    return pixel
+        rainbow_current_cell += 1
+        if rainbow_current_cell > NUMPIXELS - 1:
+            rainbow_current_cell = 0
+            rainbow_index = (rainbow_index + 1) % 256  # run from 0 to 255
+
+
+
 
 brightness = 0.1
-
 def cycle_brightness():
     brightness += 0.1
     if brightness > 1.0:
@@ -86,25 +72,58 @@ def cycle_brightness():
     neopixel.brightness = brightness
 
 
-i = 0
+changed = set()
+def get_random_pixel(changed_pixels):
+    pixel = None
+    while pixel is None:
+        pixel = random.randint(0, NUMPIXELS - 1)
+        if pixel not in changed_pixels:
+            return pixel
+        else:
+            return None
+            print("skip")
+
+slow_replace_color = (255,0,255)
+slow_replace_last_checked = 0
+slow_replace_interval = 0.3
+def slow_replace(now):
+    global changed
+    global slow_replace_last_checked
+    global slow_replace_interval
+    global slow_replace_color
+    if now - slow_replace_last_checked > slow_replace_interval:
+        slow_replace_last_checked = now
+
+        if len(changed) < NUMPIXELS - 1:
+
+            pixel = get_random_pixel(changed)
+            if pixel is not None:
+                changed.add(pixel)
+                neopixels[pixel] = slow_replace_color
+                neopixels.show()
+        else:
+            changed.clear()
+            i = (random.randint(0,255) + 1) % 256  # run from 0 to 255
+            slow_replace_color = wheel(i & 255)
+
+
+# current_pattern = 'RAINBOW'
+current_pattern = 'SLOW_REPLACE'
+
+base_interval_last_checked = 0
+base_interval = 0.0005
 while True:
-    if (touch.value):
-      cycle_brightness()
-    changed.clear()
-    i = (random.randint(0,255) + 1) % 256  # run from 0 to 255
-    color = wheel(i & 255)
-    while len(changed) < NUMPIXELS-1:
-        print(len(changed))
+    now = time.monotonic()
+    if now - base_interval_last_checked > base_interval:
+        base_interval_last_checked = now
+        if current_pattern == 'SLOW_REPLACE':
+            slow_replace(now)
+        elif current_pattern == 'RAINBOW':
+            rainbow(now)
+        # try:
+        #     print(ultrasonic.distance)
+        # except RuntimeError:
+        #     pass
 
-        pixel = get_random_pixel()
-        # print(color)
-
-        neopixels[pixel] = color
-        neopixels.show()
-        time.sleep(0.2)
-
-        # idx = int((pixel * 256 / NUMPIXELS) + i)
-        # neopixels[pixel] = wheel(idx & 255)
-        # neopixels.show()
-
-
+        # if (touch.value):
+        #   cycle_brightness()
