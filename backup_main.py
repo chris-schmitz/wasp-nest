@@ -7,9 +7,9 @@ import neopixel
 import random
 import adafruit_hcsr04
 
-# touch = touchio.TouchIn(board.D0)
+touch = touchio.TouchIn(board.D4)
 potentiometer = AnalogIn(board.A0)
-ultrasonic = adafruit_hcsr04.HCSR04(trigger_pin=board.D3, echo_pin=board.D4)
+ultrasonic = adafruit_hcsr04.HCSR04(trigger_pin=board.D3, echo_pin=board.D0)
 
 NUMPIXELS = 12
 neopixels = neopixel.NeoPixel(board.D2, NUMPIXELS, brightness=0.8, auto_write=False)
@@ -73,15 +73,6 @@ def rainbow(now):
             rainbow_index = (rainbow_index + 1) % 256  # run from 0 to 255
 
 
-brightness = 0.1
-
-
-def cycle_brightness():
-    brightness += 0.1
-    if brightness > 1.0:
-        brightness = 0.1
-    neopixel.brightness = brightness
-
 
 changed = set()
 
@@ -99,7 +90,7 @@ def get_random_pixel(changed_pixels):
 
 slow_replace_color = (255, 0, 255)
 slow_replace_last_checked = 0
-slow_replace_interval = 0.3
+slow_replace_interval = 0.2
 
 
 def slow_replace(now):
@@ -124,12 +115,12 @@ def slow_replace(now):
 
 
 current_pattern = "SLOW_REPLACE"
+# current_pattern = "AGGREVATION"
 pattern_debounce_time = 1.0
 pattern_debounce_last_check = 0
 
 
 def cycle_pattern(now):
-    # global neopixels
     global current_pattern
     global pattern_debounce_time
     global pattern_debounce_last_check
@@ -140,6 +131,8 @@ def cycle_pattern(now):
         pattern_debounce_last_check = now
         if current_pattern == "RAINBOW":
             current_pattern = "SLOW_REPLACE"
+        elif current_pattern == "SLOW_REPLACE":
+            current_pattern = "AGGREVATION"
         else:
             current_pattern = "RAINBOW"
         print("new pattern: ", current_pattern)
@@ -162,6 +155,41 @@ def potentiometer_changed(now):
             neopixels.brightness = brightness_value
 
 
+# ! Don't like this one, but can prob repurpose it for the aggrivation animation
+ultra_last_checked = 0
+ultra_interval = 0.04
+flicker_state = False
+def ultra_fill(now):
+    global ultra_last_checked
+    global ultra_interval
+    global flicker_state
+    if now - ultra_last_checked > ultra_interval:
+        ultra_last_checked = now
+        try:
+            distance = round(map_range(round(ultrasonic.distance,0), 0, 120, 0, NUMPIXELS ))
+        except RuntimeError:
+            pass
+
+        if flicker_state:
+            background = (106, 137, 167)
+        else:
+            background = (80, 100, 137)
+        frustration = (0,239, 139 )
+        cells = list()
+        for i in range(NUMPIXELS - distance):
+            cells.append(random.randint(0, NUMPIXELS - 1))
+        print("Distance: ", distance)
+        # color = wheel(random.randint(0, 255))
+        neopixels.fill(background)
+        for cell in cells:
+            neopixels[cell] = frustration
+        neopixels.show()
+        time.sleep(distance * 0.05)
+        neopixels.fill(background)
+        neopixels.show()
+
+
+
 base_interval_last_checked = 0
 base_interval = 0.0005
 while True:
@@ -171,17 +199,13 @@ while True:
 
         potentiometer_changed(now)
 
-        # if touch.value:
-        #     cycle_pattern(now)
+        if touch.value:
+            cycle_pattern(now)
 
         if current_pattern == "SLOW_REPLACE":
             slow_replace(now)
         elif current_pattern == "RAINBOW":
             rainbow(now)
-        # try:
-        #     print(ultrasonic.distance)
-        # except RuntimeError:
-        #     pass
+        elif current_pattern == "AGGREVATION":
+            ultra_fill(now)
 
-        # if (touch.value):
-        #   cycle_brightness()
