@@ -114,8 +114,8 @@ def slow_replace(now):
             slow_replace_color = wheel(i & 255)
 
 
-current_pattern = "SLOW_REPLACE"
-# current_pattern = "AGGREVATION"
+# current_pattern = "SLOW_REPLACE"
+current_pattern = "AGGREVATION"
 pattern_debounce_time = 1.0
 pattern_debounce_last_check = 0
 
@@ -148,7 +148,7 @@ def potentiometer_changed(now):
     if now - pot_last_checked > pot_interval:
         pot_last_checked = now
         mapped_value = map_range(potentiometer.value, 0, 65535, 0, 100)
-        new_value = round(mapped_value / 100.0 , 2)
+        new_value = round(mapped_value / 100.0 , 1)
         if new_value != brightness_value:
             print("Setting brightness to: ", brightness_value)
             brightness_value = new_value
@@ -159,34 +159,40 @@ def potentiometer_changed(now):
 ultra_last_checked = 0
 ultra_interval = 0.04
 flicker_state = False
-def ultra_fill(now):
+def aggravation(now):
     global ultra_last_checked
     global ultra_interval
     global flicker_state
+    if flicker_state:
+        background = (106, 137, 167)
+    else:
+        background = (108, 137, 166)
+    flicker_state = not flicker_state
+    neopixels.fill(background)
+    neopixels.show()
     if now - ultra_last_checked > ultra_interval:
         ultra_last_checked = now
+        distance = 0
         try:
             distance = round(map_range(round(ultrasonic.distance,0), 0, 120, 0, NUMPIXELS ))
         except RuntimeError:
             pass
 
-        if flicker_state:
-            background = (106, 137, 167)
-        else:
-            background = (80, 100, 137)
         frustration = (0,239, 139 )
-        cells = list()
+        cells = set()
         for i in range(NUMPIXELS - distance):
-            cells.append(random.randint(0, NUMPIXELS - 1))
-        print("Distance: ", distance)
+            cell = random.randint(0, NUMPIXELS - 1)
+            cells.add(cell)
+        # print("Distance: ", distance)
         # color = wheel(random.randint(0, 255))
-        neopixels.fill(background)
+        # neopixels.fill(background)
         for cell in cells:
             neopixels[cell] = frustration
         neopixels.show()
-        time.sleep(distance * 0.05)
-        neopixels.fill(background)
-        neopixels.show()
+        time.sleep(distance * 0.02)
+        # time.sleep(distance * 0.05)
+        # neopixels.fill(background)
+        # neopixels.show()
 
 
 
@@ -207,5 +213,5 @@ while True:
         elif current_pattern == "RAINBOW":
             rainbow(now)
         elif current_pattern == "AGGREVATION":
-            ultra_fill(now)
+            aggravation(now)
 
