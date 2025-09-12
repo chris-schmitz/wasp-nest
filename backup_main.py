@@ -10,7 +10,6 @@ import adafruit_hcsr04
 touch = touchio.TouchIn(board.D1)
 ultrasonic = adafruit_hcsr04.HCSR04(trigger_pin=board.D3, echo_pin=board.D4)
 
-
 NUMPIXELS = 12
 neopixels = neopixel.NeoPixel(board.D2, NUMPIXELS, brightness=0.8, auto_write=False)
 
@@ -43,13 +42,14 @@ rainbow_last_checked = 0
 rainbow_interval = 0.0005
 rainbow_index = 0
 rainbow_current_cell = 0
+
+
 def rainbow(now):
     global rainbow_index
     global rainbow_current_cell
     global rainbow_last_checked
     if now - rainbow_last_checked > rainbow_interval:
-        rainbow_last_checked = now 
-
+        rainbow_last_checked = now
 
         # for p in range(NUMPIXELS):
         idx = int((rainbow_current_cell * 256 / NUMPIXELS) + rainbow_index)
@@ -62,9 +62,9 @@ def rainbow(now):
             rainbow_index = (rainbow_index + 1) % 256  # run from 0 to 255
 
 
-
-
 brightness = 0.1
+
+
 def cycle_brightness():
     brightness += 0.1
     if brightness > 1.0:
@@ -73,6 +73,8 @@ def cycle_brightness():
 
 
 changed = set()
+
+
 def get_random_pixel(changed_pixels):
     pixel = None
     while pixel is None:
@@ -83,9 +85,12 @@ def get_random_pixel(changed_pixels):
             return None
             print("skip")
 
-slow_replace_color = (255,0,255)
+
+slow_replace_color = (255, 0, 255)
 slow_replace_last_checked = 0
 slow_replace_interval = 0.3
+
+
 def slow_replace(now):
     global changed
     global slow_replace_last_checked
@@ -103,22 +108,47 @@ def slow_replace(now):
                 neopixels.show()
         else:
             changed.clear()
-            i = (random.randint(0,255) + 1) % 256  # run from 0 to 255
+            i = (random.randint(0, 255) + 1) % 256  # run from 0 to 255
             slow_replace_color = wheel(i & 255)
 
 
+current_pattern = "SLOW_REPLACE"
+pattern_debounce_time = 1.0
+pattern_debounce_last_check = 0
+
+
+def cycle_pattern(now):
+    # global neopixels
+    global current_pattern
+    global pattern_debounce_time
+    global pattern_debounce_last_check
+    if now - pattern_debounce_last_check > pattern_debounce_time:
+        neopixels.fill((0, 0, 0))
+        neopixels.show()
+        print("cycle pattern...")
+        pattern_debounce_last_check = now
+        if current_pattern == "RAINBOW":
+            current_pattern = "SLOW_REPLACE"
+        else:
+            current_pattern = "RAINBOW"
+        print("new pattern: ", current_pattern)
+
+
 # current_pattern = 'RAINBOW'
-current_pattern = 'SLOW_REPLACE'
 
 base_interval_last_checked = 0
 base_interval = 0.0005
 while True:
     now = time.monotonic()
     if now - base_interval_last_checked > base_interval:
+
+        if touch.value:
+            cycle_pattern(now)
+
         base_interval_last_checked = now
-        if current_pattern == 'SLOW_REPLACE':
+        if current_pattern == "SLOW_REPLACE":
             slow_replace(now)
-        elif current_pattern == 'RAINBOW':
+        elif current_pattern == "RAINBOW":
             rainbow(now)
         # try:
         #     print(ultrasonic.distance)
