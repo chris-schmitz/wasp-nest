@@ -7,7 +7,8 @@ import neopixel
 import random
 import adafruit_hcsr04
 
-touch = touchio.TouchIn(board.D1)
+# touch = touchio.TouchIn(board.D0)
+potentiometer = AnalogIn(board.A0)
 ultrasonic = adafruit_hcsr04.HCSR04(trigger_pin=board.D3, echo_pin=board.D4)
 
 NUMPIXELS = 12
@@ -16,6 +17,16 @@ neopixels = neopixel.NeoPixel(board.D2, NUMPIXELS, brightness=0.8, auto_write=Fa
 
 ######################### HELPERS ##############################
 
+def map_range(value, in_min, in_max, out_min, out_max):
+    """
+    Maps a value from one range to another.
+    """
+    in_span = in_max - in_min
+    out_span = out_max - out_min
+    
+    scaled_value = float(value - in_min) / float(in_span)
+    
+    return out_min + (scaled_value * out_span)
 
 # Helper to give us a nice color swirl
 def wheel(pos):
@@ -134,18 +145,35 @@ def cycle_pattern(now):
         print("new pattern: ", current_pattern)
 
 
-# current_pattern = 'RAINBOW'
+pot_last_checked = 0 
+pot_interval = 0.1
+brightness_value = 0.8
+def potentiometer_changed(now):
+    global pot_last_checked 
+    global pot_interval 
+    global brightness_value
+    if now - pot_last_checked > pot_interval:
+        pot_last_checked = now
+        mapped_value = map_range(potentiometer.value, 0, 65535, 0, 100)
+        new_value = round(mapped_value / 100.0 , 2)
+        if new_value != brightness_value:
+            print("Setting brightness to: ", brightness_value)
+            brightness_value = new_value
+            neopixels.brightness = brightness_value
+
 
 base_interval_last_checked = 0
 base_interval = 0.0005
 while True:
     now = time.monotonic()
     if now - base_interval_last_checked > base_interval:
-
-        if touch.value:
-            cycle_pattern(now)
-
         base_interval_last_checked = now
+
+        potentiometer_changed(now)
+
+        # if touch.value:
+        #     cycle_pattern(now)
+
         if current_pattern == "SLOW_REPLACE":
             slow_replace(now)
         elif current_pattern == "RAINBOW":
